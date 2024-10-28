@@ -4,6 +4,7 @@ import time
 import pandas as pd
 import os
 import shutil
+import logging
 from urllib.parse import urlencode
 from io import StringIO
 
@@ -43,36 +44,53 @@ class LogsApi:
     @classmethod
     def create_log_request(cls, date1, date2, source):
         # создание запроса на логирование
-        url_params = urlencode(
-            [
-                ('date1', date1),
-                ('date2', date2),
-                ('source', source),
-                ('fields', ','.join(cls.API_FIELDS.get(source)))
-            ]
-        )
-        url = cls.API_URL+'s?' + url_params
-        response = requests.post(url, headers=cls.header_dict)
-        if response.status_code == 200:
+        try:
+            url_params = urlencode(
+                [
+                    ('date1', date1),
+                    ('date2', date2),
+                    ('source', source),
+                    ('fields', ','.join(cls.API_FIELDS.get(source)))
+                ]
+            )
+            url = cls.API_URL + 's?' + url_params
+
+            logging.info(f"URL для отправки запроса: {url}")
+            logging.info(f"Параметры запроса: {url_params}")
+            logging.info(f"Заголовки запроса: {cls.header_dict}")
+
+            response = requests.post(url, headers=cls.header_dict)
+            logging.info(response)
+            response.raise_for_status()  
+
             print(f"Запрос для {source} за даты {date1} и {date2} успешно создан.")
             return response.json()["log_request"]["request_id"]
-        else:
-            print(f"Ошибка при создании запроса: {response.status_code} - {response.text}")
+
+        except requests.exceptions.RequestException as e:
+            print(f"Ошибка при создании запроса: {e}")
+        except KeyError:
+            print("Ошибка в структуре ответа: отсутствует 'log_request' или 'request_id'.")
 
         
     @classmethod
     def get_log_request_status(cls, request_id):
         # проверка статуса запроса на логирование
-        time.sleep(3)
-        url = f"{cls.API_URL}/{request_id}"
+        try:
+            time.sleep(120)
+            url = f"{cls.API_URL}/{request_id}"
 
-        response = requests.get(url, headers=cls.header_dict)
-        if response.status_code == 200:
+            response = requests.get(url, headers=cls.header_dict)
+            logging.info(f'Response: {response}')
+            response.raise_for_status()
             status = response.json()["log_request"]
-            return status
-        else:
-            print(f"Ошибка при проверке статуса запроса: {response.status_code} - {response.text}")
-            return None
+            logging.info(f'Status: {status}')
+            parts = status['parts']
+            logging.info(f'Parts: {parts}')
+            return parts
+        
+        except requests.exceptions.RequestException as e:
+            print(f"Ошибка при проверке статуса запроса: {e}")
+
         
     @classmethod
     def download_log_files(cls, request_id, parts, source, folder_base):

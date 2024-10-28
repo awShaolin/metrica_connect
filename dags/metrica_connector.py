@@ -32,22 +32,28 @@ with DAG(
     catchup=False,
     max_active_runs=1, 
     params={
-        'date1': None, 
-        'date2': None
+        'date_start': None, 
+        'date_end': None
     }
 ) as dag:
     
     @task
-    def create_log_request(params):
-        date1 = params['date1'] or (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
-        date2 = params['date2'] or (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
+    def create_log_request(**kwargs):
+        dag_run = kwargs['dag_run']
+        date1 = dag_run.conf.get('date_start')
+        date2 = dag_run.conf.get('date_end')
+
+        if date1 is None or date2 is None:
+            date1 = (kwargs['data_interval_end'] - timedelta(days=1)).strftime('%Y-%m-%d')
+            date2 = (kwargs['data_interval_end'] - timedelta(days=1)).strftime('%Y-%m-%d')
+
         request_id = LogsApi.create_log_request(date1, date2, SOURCE)
         return request_id
     
     @task
     def get_log_request_status(request_id):
-        status = LogsApi.get_log_request_status(request_id)
-        return status['parts']
+        parts = LogsApi.get_log_request_status(request_id)
+        return parts
     
     @task
     def download_log_files(request_id, parts):
@@ -59,7 +65,7 @@ with DAG(
     def clean_log_files(request_id):
         LogsApi.clean_log_files(request_id)
 
-    @task
+    @task(trigger_rule='all_done')
     def clean_dwnld_folder(request_id):
         folder_path = os.path.join(LOCAL_DWNLD_BASE, SOURCE, request_id)
         if os.path.exists(folder_path):
