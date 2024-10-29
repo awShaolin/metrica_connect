@@ -25,11 +25,14 @@ class LogsApi:
     API_URL = "https://api-metrika.yandex.ru/management/v1/counter/{counter_id}/logrequest".format(counter_id=COUNTER_ID)
     SOURCE = ['hits','visits']
 
-    API_FIELDS = {'visits':('ym:s:visitID', 'ym:s:counterID', 'ym:s:watchIDs', 'ym:s:dateTime',
-                        'ym:s:isNewUser', 'ym:s:visitDuration', 'ym:s:pageViews', 'ym:s:regionCountryID','ym:s:goalsID',
-                        'ym:s:<attribution>TrafficSource','ym:s:<attribution>UTMCampaign','ym:s:<attribution>UTMContent',
-                        'ym:s:<attribution>UTMMedium','ym:s:<attribution>UTMSource','ym:s:<attribution>UTMTerm',
-                        'ym:s:clientID','ym:s:deviceCategory','ym:s:parsedParamsKey1','ym:s:parsedParamsKey2','ym:s:parsedParamsKey3'),
+    API_FIELDS = {'visits':('ym:s:visitID', 'ym:s:counterID', 'ym:s:watchIDs',
+                            'ym:s:date', 'ym:s:dateTime', 'ym:s:clientID', 'ym:s:startURL', 
+                            'ym:s:deviceCategory', 'ym:s:lastDirectClickOrder', 'ym:s:lastDirectClickOrderName', 'ym:s:lastTrafficSource',
+                            'ym:s:lastAdvEngine', 'ym:s:lastReferalSource', 'ym:s:lastSearchEngineRoot', 'ym:s:lastSearchEngine', 
+                            'ym:s:lastSocialNetwork', 'ym:s:referer', 'ym:s:lastUTMCampaign', 'ym:s:lastUTMContent',
+                            'ym:s:lastUTMMedium', 'ym:s:lastUTMSource', 'ym:s:lastUTMTerm', 'ym:s:regionCountry',
+                            'ym:s:regionCity', 'ym:s:goalsID', 'ym:s:goalsSerialNumber', 'ym:s:goalsDateTime',
+                        ),
                 'hits':('ym:pv:watchID','ym:pv:counterID','ym:pv:dateTime','ym:pv:title',
                         'ym:pv:URL','ym:pv:UTMCampaign','ym:pv:UTMContent','ym:pv:UTMMedium',
                         'ym:pv:UTMSource','ym:pv:UTMTerm','ym:pv:clientID','ym:pv:parsedParamsKey1','ym:pv:parsedParamsKey2','ym:pv:parsedParamsKey3')}
@@ -76,29 +79,30 @@ class LogsApi:
     def get_log_request_status(cls, request_id):
         # проверка статуса запроса на логирование
         try:
-            time.sleep(30)
+            time.sleep(120)
             url = f"{cls.API_URL}/{request_id}"
 
             response = requests.get(url, headers=cls.header_dict)
             logging.info(f'Response: {response}')
             response.raise_for_status()
             status = response.json()["log_request"]
-            logging.info(f'Status: {status}')
-            parts = status['parts']
-            logging.info(f'Parts: {parts}')
-            return parts
+        
+            return status
         
         except requests.exceptions.RequestException as e:
             print(f"Ошибка при проверке статуса запроса: {e}")
 
         
     @classmethod
-    def download_log_files(cls, request_id, parts, source, folder_base):
+    def download_log_files(cls, request_id, status, source, folder_base):
         #create dir for load metrica files 
         local_dwnld_dir = f'{folder_base}{source}/{request_id}' 
         if os.path.exists(local_dwnld_dir):
             shutil.rmtree(local_dwnld_dir)
         os.makedirs(local_dwnld_dir, exist_ok=True)
+
+        parts = status['parts']
+        logging.info(f'Parts: {parts}')
 
         for part in parts:
             part_number = part['part_number']
