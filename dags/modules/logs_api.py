@@ -76,7 +76,7 @@ class LogsApi:
     def get_log_request_status(cls, request_id):
         # проверка статуса запроса на логирование
         try:
-            time.sleep(120)
+            time.sleep(30)
             url = f"{cls.API_URL}/{request_id}"
 
             response = requests.get(url, headers=cls.header_dict)

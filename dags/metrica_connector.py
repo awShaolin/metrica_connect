@@ -61,13 +61,14 @@ with DAG(
             LogsApi.download_log_files(request_id, parts, SOURCE, LOCAL_DWNLD_BASE)
         return request_id
 
-    @task
+    @task(trigger_rule='all_done')
     def clean_log_files(request_id):
         LogsApi.clean_log_files(request_id)
+        return request_id
 
     @task(trigger_rule='all_done')
     def clean_dwnld_folder(request_id):
-        folder_path = os.path.join(LOCAL_DWNLD_BASE, SOURCE, request_id)
+        folder_path = os.path.join(LOCAL_DWNLD_BASE, SOURCE, str(request_id))
         if os.path.exists(folder_path):
             shutil.rmtree(folder_path)
             logging.info(f"Folder {folder_path} has been cleaned up.")
@@ -79,6 +80,7 @@ with DAG(
     request_id = create_log_request(params=dag.params)
     parts = get_log_request_status(request_id)
     request_id = download_log_files(request_id, parts)
-    clean_log_files(request_id)
+    request_id = clean_log_files(request_id)
     clean_dwnld_folder(request_id)
+    
 
